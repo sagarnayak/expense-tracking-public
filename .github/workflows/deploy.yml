@@ -1,0 +1,70 @@
+name: Deploy to Multiple S3 Buckets and Invalidate CloudFront Distributions
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    # Allow manual triggering
+
+jobs:
+  deploy:
+    name: Deploy to ${{ matrix.target.name }}
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write   # Required for AWS auth
+      contents: read    # Required for checkout
+    
+    strategy:
+      matrix:
+        target:
+          - name: <<Environment Name>>
+            bucket: <<S3 Bucket Name>>
+            distribution_id: <<CloudFront Distribution ID>>
+            key_id_secret: <<AWS Access Key ID Secret Name>>
+            key_secret: <<AWS Secret Access Key Secret Name>>
+            domain_prefix: <<domain_prefix>>
+            username: '<<username>>'
+            password: '<<bcrypt_password_hash>>'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      
+      - name: Update Config for ${{ matrix.target.name }} Environment
+        run: |
+          echo "Updating configuration for ${{ matrix.target.name }} environment"
+          
+          # Create a backup of the original config
+          cp js/config.js js/config.js.bak
+          
+          # Simply copy the correct environment-specific config file
+          echo "Using config.${{ matrix.target.domain_prefix }}.js for this deployment"
+          cp js/config.${{ matrix.target.domain_prefix }}.js js/config.js
+          
+          # For verification, show what config we're using
+          echo "\nVerifying config for ${{ matrix.target.name }} environment:"
+          sed -n '/AUTH: {/,/}/p' js/config.js
+          
+          echo "Configuration updated for ${{ matrix.target.name }}"
+          cat js/config.js | grep -E "(ENDPOINT|USERNAME|PASSWORD)"
+      
+      - name: Configure AWS Credentials for ${{ matrix.target.name }}
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets[matrix.target.key_id_secret] }}
+          aws-secret-access-key: ${{ secrets[matrix.target.key_secret] }}
+          aws-region: us-east-1
+      
+      - name: Deploy to ${{ matrix.target.name }} S3 Bucket
+        run: |
+          echo "Starting deployment to S3 bucket: ${{ matrix.target.bucket }}"
+          aws s3 sync . s3://${{ matrix.target.bucket }} \
+            --delete \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude "README.md" \
+            --exclude ".gitignore"
+          echo "S3 deployment completed for ${{ matrix.target.bucket }}"

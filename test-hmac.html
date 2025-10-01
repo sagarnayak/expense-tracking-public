@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMAC SHA-512 Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-panel {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .test-result {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px 0;
+        }
+        input {
+            width: 300px;
+        }
+        h2 {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HMAC SHA-512 Testing Tool</h1>
+        
+        <div class="test-panel">
+            <h2>1. Library Availability Check</h2>
+            <div id="lib-check-result" class="test-result">Checking...</div>
+        </div>
+        
+        <div class="test-panel">
+            <h2>2. Basic HMAC Generation Test</h2>
+            <div>
+                <label for="test-message">Message:</label><br>
+                <input type="text" id="test-message" value="<<test-message>>"><br>
+                <label for="test-secret">Secret Key:</label><br>
+                <input type="text" id="test-secret" value="<<test-secret>>"><br>
+                <button id="run-basic-test">Generate HMAC</button>
+            </div>
+            <div id="basic-test-result" class="test-result">Results will appear here...</div>
+        </div>
+        
+        <div class="test-panel">
+            <h2>3. Security Service Simulation</h2>
+            <div>
+                <label for="sim-domain">Domain:</label><br>
+                <input type="text" id="sim-domain" value="<<domain>>"><br>
+                <label for="sim-password">Password:</label><br>
+                <input type="text" id="sim-password" value="<<password>>"><br>
+                <button id="run-sim-test">Generate Headers</button>
+            </div>
+            <div id="sim-test-result" class="test-result">Results will appear here...</div>
+        </div>
+    </div>
+
+    <!-- Load CryptoJS library from official CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <script>
+        // 1. Check if library is available
+        document.addEventListener('DOMContentLoaded', function() {
+            const libCheckResult = document.getElementById('lib-check-result');
+            
+            try {
+                const cryptoAvailable = typeof CryptoJS !== 'undefined';
+                const hmacAvailable = typeof CryptoJS?.HmacSHA512 === 'function';
+                
+                let resultHTML = `CryptoJS available: ${cryptoAvailable ? '<span class="success">YES</span>' : '<span class="error">NO</span>'}\n`;
+                resultHTML += `HmacSHA512 available: ${hmacAvailable ? '<span class="success">YES</span>' : '<span class="error">NO</span>'}`;
+                
+                libCheckResult.innerHTML = resultHTML;
+            } catch (e) {
+                libCheckResult.innerHTML = `<span class="error">ERROR: ${e.message}</span>`;
+            }
+        });
+        
+        // 2. Basic HMAC test
+        document.getElementById('run-basic-test').addEventListener('click', function() {
+            const testMessage = document.getElementById('test-message').value;
+            const testSecret = document.getElementById('test-secret').value;
+            const resultElement = document.getElementById('basic-test-result');
+            
+            try {
+                const startTime = performance.now();
+                const signature = CryptoJS.HmacSHA512(testMessage, testSecret).toString(CryptoJS.enc.Hex);
+                const endTime = performance.now();
+                
+                let resultHTML = `Input message: ${testMessage}\n`;
+                resultHTML += `Secret key: ${testSecret}\n`;
+                resultHTML += `Generated HMAC: ${signature}\n`;
+                resultHTML += `HMAC length: ${signature.length} characters\n`;
+                resultHTML += `Generation time: ${(endTime - startTime).toFixed(2)}ms\n`;
+                resultHTML += `Status: <span class="success">SUCCESS</span>`;
+                
+                resultElement.innerHTML = resultHTML;
+            } catch (e) {
+                resultElement.innerHTML = `<span class="error">ERROR: ${e.message}</span>`;
+            }
+        });
+        
+        // 3. Security service simulation
+        document.getElementById('run-sim-test').addEventListener('click', function() {
+            const domain = document.getElementById('sim-domain').value;
+            const password = document.getElementById('sim-password').value;
+            const resultElement = document.getElementById('sim-test-result');
+            
+            try {
+                // Generate timestamp in format: YYYYMMDDHHMMSS
+                const now = new Date();
+                const timestamp = now.toISOString().replace(/[-:T.Z]/g, '').substring(0, 14);
+                
+                // Generate message (domain:timestamp)
+                const message = `${domain}:${timestamp}`;
+                
+                // Generate signature
+                const signature = CryptoJS.HmacSHA512(message, password).toString(CryptoJS.enc.Hex);
+                
+                // Create headers object
+                const headers = {
+                    'x-message': message,
+                    'x-signature': signature
+                };
+                
+                let resultHTML = `Generated timestamp: ${timestamp}\n`;
+                resultHTML += `Generated message (x-message): ${message}\n`;
+                resultHTML += `Password used: ${password}\n`;
+                resultHTML += `Generated signature (x-signature): ${signature}\n\n`;
+                resultHTML += `Complete headers object:\n`;
+                resultHTML += JSON.stringify(headers, null, 2);
+                
+                resultElement.innerHTML = resultHTML;
+            } catch (e) {
+                resultElement.innerHTML = `<span class="error">ERROR: ${e.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>
